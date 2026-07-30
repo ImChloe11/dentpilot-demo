@@ -1,0 +1,51 @@
+name: Deploy DentPilot to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Assemble static demo
+        run: |
+          unzip -q dentpilot-site-core.zip -d dist-pages
+          mkdir -p dist-pages/models
+          cat dentpilot-teeth-occlusion.glb.part-* > dist-pages/models/dentpilot-teeth-occlusion.glb
+          cat dentpilot-teeth-open.glb.part-* > dist-pages/models/dentpilot-teeth-open.glb
+          test -f dist-pages/index.html
+          test "$(stat -c%s dist-pages/models/dentpilot-teeth-occlusion.glb)" = "20774072"
+          test "$(stat -c%s dist-pages/models/dentpilot-teeth-open.glb)" = "18047096"
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist-pages
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
